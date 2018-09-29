@@ -1,0 +1,7 @@
+     <!--li class="punch-bar" class="${classMap({'selected': item.isMax})}">
+                <img src="../../assets/robots/robo${index + 1}.png" class="punch-bar-item" style="width: 75px">
+                <div class="punch-bar-item">
+                  <span class="punch-large" aria-label="Player name">Player-${index + 1}</span> |
+                  <span textContent="${item.value}" aria-label="Punch speed"></span>
+                </div>
+              </li-->
