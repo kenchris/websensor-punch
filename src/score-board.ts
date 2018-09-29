@@ -33,13 +33,14 @@ class ScoreBoard extends LitElement {
   @query('#list')
   private list!: HTMLElement;
 
-  connect() {
-    this.kit.connect();
+  constructor() {
+    super();
 
     this.accel = new this.kit.Accelerometer();
+
     this.accel!.onreading = () => {
       this.ready = true;
-      let dt = 0.02; // 50 hertz.
+      let dt = 0.01; // 100 hertz.
 
       const bias = 0.8;
       for (let key of ["x", "y", "z"]) {
@@ -75,6 +76,10 @@ class ScoreBoard extends LitElement {
         }
       }
     }
+  }
+
+  connect() {
+    this.kit.connect();
   }
 
   async updateHighScore(timestamp: number, value: number) {
