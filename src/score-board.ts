@@ -1,13 +1,16 @@
-import { html, LitElement, query, property } from '@polymer/lit-element';
+import { html, LitElement, query, property, customElement } from '@polymer/lit-element';
 import { classMap } from 'lit-html/directives/classMap';
 import { repeat } from 'lit-html/directives/repeat';
+
+import "@material/mwc-button";
 
 import { EmpiriKit, Sensor } from './empirikit'
 
 interface iHighScore {
   timestamp: number;
+  player: number;
   value: number;
-  isMax: boolean;
+  selected: boolean;
 }
 
 interface iVector {
@@ -16,9 +19,34 @@ interface iVector {
   z: number;
 }
 
+declare global {
+  interface HTMLElementTagNameMap {
+    'punch-winner': PunchWinner;
+  }
+}
+
+@customElement('punch-winner' as any)
+class PunchWinner extends LitElement {
+  @property({type: String}) name = "";
+
+  render() {
+    return html`
+      <h1>And the winner is ${this.name}!</h1>
+    `;
+  }
+}
+
 class ScoreBoard extends LitElement {
-  @property({type:Boolean}) ready: boolean = false;
+  @property({type:String}) page: string = "start";
+
   @property() highscore: iHighScore[] = [];
+  @property({type:Number}) player: number = 0;
+
+  @query('#turn')
+  turn!: HTMLElement;
+
+  @query('#go')
+  go!: HTMLElement;
 
   kit = new EmpiriKit();
 
@@ -30,6 +58,8 @@ class ScoreBoard extends LitElement {
   private timeoutId: number | null = null;
   private isDetecting: boolean = false;
 
+  private block: boolean = false;
+
   @query('#list')
   private list!: HTMLElement;
 
@@ -39,7 +69,10 @@ class ScoreBoard extends LitElement {
     this.accel = new this.kit.Accelerometer();
 
     this.accel!.onreading = () => {
-      this.ready = true;
+      if (this.block) {
+        return;
+      }
+
       let dt = 0.01; // 100 hertz.
 
       const bias = 0.8;
@@ -66,33 +99,79 @@ class ScoreBoard extends LitElement {
         if (!this.timeoutId) {
           // When people stop punching they still move the hand back a bit.
           this.timeoutId = setTimeout(() => {
-            console.info("Punch!", this.maxSpeed);
+            console.info(`Punch from player ${this.player}!`, this.maxSpeed);
             this.isDetecting = false;
             this.timeoutId = null;
 
-            this.updateHighScore(performance.now(), this.maxSpeed);
+            this.updateHighScore(this.player, performance.now(), this.maxSpeed);
             this.maxSpeed = 0;
+            this.player = (this.player + 1) % 3;
           }, 500);
         }
       }
     }
   }
 
-  connect() {
-    this.kit.connect();
+  async connect() {
+    const success = await this.kit.connect();
+    if (success) {
+      this.fadePlayerIn();
+    }
   }
 
-  async updateHighScore(timestamp: number, value: number) {
-    const item: iHighScore = { timestamp: timestamp, value: +value.toFixed(3), isMax: false };
+  fadePlayerOut() {
+    this.turn.style.opacity = "0";
+    this.go.style.visibility = "hidden";
+  }
+
+  fadePlayerIn() {
+    this.block = true;
+    // @ts-ignore
+    const animation = this.turn.animate([
+      { opacity: 0 },
+      { opacity: 1 }
+    ], {delay: 1000, duration: 500});
+
+    animation.onfinish = () => {
+      this.turn.style.opacity = "1";
+      this.go.style.visibility = "visible";
+      this.block = false;
+      this.page = "action";
+    }
+  }
+
+  reset() {
+    this.highscore = [];
+    this.page = 'action';
+    this.fadePlayerIn();
+  }
+
+  async updateHighScore(player: number, timestamp: number, value: number) {
+    if (this.highscore.length === 9) {
+      return;
+    }
+    this.fadePlayerOut();
+
+    const item: iHighScore = { player, timestamp, value: +value.toFixed(3), selected: true};
     this.highscore.push(item);
+
+    this.highscore = this.highscore.sort((a, b) => b.value - a.value);
+
+    this.highscore.forEach(item => item.selected = item.timestamp === timestamp);
     this.requestUpdate('highscore');
 
-    let highest = Math.max(...this.highscore.map(item => item.value));
-    this.highscore.forEach(item => item.isMax = item.value === highest);
+    if (this.highscore.length === 9) {
+      setTimeout(() => {
+        this.page = "winner";
+      }, 1000);
+    } else {
+      this.fadePlayerIn();
+    }
 
     await this.updateComplete;
 
-    const last = this.list.children.length - 1;
+    const last = this.highscore.findIndex(item => item.timestamp === timestamp);
+
     this.list.children[last].scrollIntoView();
   }
 
@@ -106,32 +185,30 @@ class ScoreBoard extends LitElement {
           margin-left: auto;
           margin-right: auto;
         }
-        .fancy-button {
-          text-align: center;
-          display: inline-block;
-          position: relative;
-          text-decoration: none;
-          color: #fff;
-          background-color: #541388;
-          font-size: 18px;
-          padding: 20px 0px;
-          width: 150px;
-          -webkit-border-radius: 6;
-          -moz-border-radius: 6;
-          border-radius: 6px;
-          overflow: hidden;
-        }
-        .fancy-button:hover {
-          color: #541388;
-          background-color: #fff;
-        }
-        button:focus {
-          outline: 0;
-        }
+
         .title {
-          padding: 15px;
+          margin: 0px;
+          padding: 0px;
           font-family: 'Press Start 2P', serif;
+          z-index: 100;
+          position: fixed;
+          top: 0px;
+          right: 0px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          height: 100vh;
+          width: 100vw;
+          pointer-events: none;
+          background: white;
+          opacity: 0;
         }
+
+        #go {
+          visibility: hidden;
+        } 
 
         .punch-ul{
           list-style-type: none;
@@ -139,17 +216,8 @@ class ScoreBoard extends LitElement {
           margin:0
         }
         .punch-ul li{
-          padding: 8px 16px;
+          padding: 0px;
           border-bottom: 1px solid #ddd
-        }
-        .punch-ul li:last-child{border-bottom:none}
-        .punch-bar-item{
-          text-align: center;
-          display: inline;
-        }
-        .punch-container:after,.punch-container:before, 
-        .punch-card-4{
-          box-shadow:0 4px 10px 0 rgba(0,0,0,0.2),0 4px 20px 0 rgba(0,0,0,0.19)
         }
         .selected{
           color: #fff;
@@ -158,30 +226,46 @@ class ScoreBoard extends LitElement {
         .hidden {
           visibility: hidden;
         }
+        .page {
+          display: none;
+        }
+        .page[active] {
+          display: block;
+        }
       </style>
-      <button class="fancy-button" @click="${this.connect.bind(this)}" ?disabled="${this.ready}">Connect</button>
-      <div class="${classMap({'hidden': !this.ready})}">
-        <h1 name="title" role="header" class="title">
-          Let's start this game!!!
-        </h1>
-        <h1 name="title" role="header" class="title">
-          👊 Punch! 👊
-        </h1>
 
-        <div class="punch-container">
-          <ul class="punch-ul punch-card-4" id="list">
-          ${repeat(this.highscore, (i) => i.timestamp, (item, index) => html`
-            <li class="punch-bar ${classMap({'selected': item.isMax})}">
-              <img src="../images/robo${(index % 16 + 1)}.png" width=75 height=75 class="punch-bar-item" style="width: 75px">
-              <div class="punch-bar-item">
-                <span class="punch-large" aria-label="Player name">Player #${index + 1}</span> |
-                <span aria-label="Punch speed">${item.value} m/s</span>
-              </div>
-            </li>
-          `)}
-          </ul>
-        </div>
+      <div id="turn" role="header" class="title">
+        <h1>👊 Punch Player #${this.player + 1} 👊</h1>
+        <h1 id="go">GO!</h1>
       </div>
+
+      <main role="main" class="main-content">
+        <div class="page" ?active="${this.page === 'start'}">
+          <h1>Please connect<br>to start the game!</h1>
+          <mwc-button @click="${this.connect.bind(this)}">Connect</mwc-button>
+        </div>
+
+        <div class="page" ?active="${this.page === 'winner'}">
+          <h1>And the winner is<br>${this.highscore.length > 0 ? `Player #${this.highscore[0].player + 1}` : ''}!</h1>
+          <mwc-button @click="${this.reset.bind(this)}">Try again!</mwc-button>
+        </div>
+
+        <div class="page" ?active="${this.page === 'action'}">
+          <div class="punch-container">
+            <ul class="punch-ul punch-card-4" id="list">
+            ${repeat(this.highscore, (i) => i.timestamp, (item) => html`
+              <li class="punch-bar ${classMap({'selected': item.selected})}">
+                <img src="../images/robo${(item.player % 16 + 1)}.png" width=75 height=75 class="punch-bar-item" style="width: 75px">
+                <div class="punch-bar-item">
+                  <span class="punch-large" aria-label="Player name">Player #${item.player + 1}</span> |
+                  <span aria-label="Punch speed">${item.value} m/s</span>
+                </div>
+              </li>
+            `)}
+            </ul>
+          </div>
+        </div>
+      </main>
     `;
   }
 }

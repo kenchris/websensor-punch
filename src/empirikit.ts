@@ -59,7 +59,9 @@ export class EmpiriKit {
     if (this.device) {
       console.info(this.device);
       this._openDevice(this.device); // Begin a session.
+      return true;
     }
+    return false;
   }
 
   async _openDevice(device) {
