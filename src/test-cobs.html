@@ -1,0 +1,23 @@
+<script type=module>
+import {encode, decode} from './cobs.js';
+  
+function test(value) {
+  const enc = encode(value);
+  const dec = decode(enc);
+  
+  const toHex = byte => (byte & 0xFF).toString(16)
+
+  console.log(
+    JSON.stringify(value) == JSON.stringify(dec),
+    value.map(toHex), enc.map(toHex), dec.map(toHex));
+}
+
+test([0x00]);
+test([0x00, 0x00])
+test([0x11, 0x22, 0x00, 0x33]);
+test([0x11, 0x22, 0x33, 0x44]);
+test([0x11, 0x00, 0x00, 0x00]);
+test([0x01, 0x02, 0x03, 0xFD, 0xFE]);
+test([0x00, 0x01, 0x02, 0xFC, 0xFD, 0xFE]);
+
+</script>

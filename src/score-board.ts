@@ -1,7 +1,8 @@
 import { html, LitElement, query, property } from '@polymer/lit-element';
 import { classMap } from 'lit-html/directives/classMap';
+import { repeat } from 'lit-html/directives/repeat';
 
-import { Thingy52, Sensor } from './thingy52'
+import { EmpiriKit, Sensor } from './empirikit'
 
 interface iHighScore {
   timestamp: number;
@@ -19,25 +20,26 @@ class ScoreBoard extends LitElement {
   @property({type:Boolean}) ready: boolean = false;
   @property() highscore: iHighScore[] = [];
 
-  thingy = new Thingy52();
+  kit = new EmpiriKit();
 
-  private t: number = 0;
   private maxSpeed: number = 0;
   private gravity: iVector = { x: 0, y: 0, z: 0 };
   private linearAcceleration: iVector = { x: 0, y: 0, z: 0 };
+  private velocity: iVector = { x: 0, y: 0, z: 0 };
   private accel: Sensor | null = null;
+  private timeoutId: number | null = null;
+  private isDetecting: boolean = false;
 
   @query('#list')
   private list!: HTMLElement;
 
   connect() {
-    this.thingy.connect();
+    this.kit.connect();
 
-    this.accel = new this.thingy.Accelerometer();
+    this.accel = new this.kit.Accelerometer();
     this.accel!.onreading = () => {
       this.ready = true;
-      let dt = this.t === 0 ? 0 : (this.accel!.timestamp - this.t);
-      this.t = this.accel!.timestamp;
+      let dt = 0.02; // 50 hertz.
 
       const bias = 0.8;
       for (let key of ["x", "y", "z"]) {
@@ -45,28 +47,37 @@ class ScoreBoard extends LitElement {
         this.gravity[key] = (1 - bias) * this.gravity[key] + bias * this.accel[key];
         // @ts-ignore
         this.linearAcceleration[key] = this.accel[key] - this.gravity[key];
+        this.velocity[key] = this.velocity[key] + this.linearAcceleration[key] * dt;
       }
 
-      const accl = this.linearAcceleration;
-      const velocity = Math.abs(Math.sqrt((accl.x / dt) ** 2 + (accl.y / dt) ** 2 + (accl.z / dt) ** 2));
+      const vel = this.velocity;
+      const velocity = Math.abs(Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2));
 
-      if (velocity === Infinity) {
-        return;
+      // Average punch for a boxer is 11 m/s, and 1/10th of that for a regular person. 
+      const movementThreshold = 0.2;
+
+      if (velocity > movementThreshold) {
+        this.isDetecting = true;
+        this.maxSpeed = Math.max(this.maxSpeed, velocity);
       }
 
-      this.maxSpeed = Math.max(this.maxSpeed, velocity);
+      if (this.isDetecting && velocity < movementThreshold) {
+        if (!this.timeoutId) {
+          // When people stop punching they still move the hand back a bit.
+          this.timeoutId = setTimeout(() => {
+            console.info("Punch!", this.maxSpeed);
+            this.isDetecting = false;
+            this.timeoutId = null;
 
-      if (this.maxSpeed > 2 && velocity < this.maxSpeed / 2) {
-        this.updateHighScore(this.t, this.maxSpeed);
-        this.maxSpeed = 0;
+            this.updateHighScore(performance.now(), this.maxSpeed);
+            this.maxSpeed = 0;
+          }, 500);
+        }
       }
     }
   }
 
   async updateHighScore(timestamp: number, value: number) {
-    //if (this.highscore.length >= 14)
-    //  return;
-
     const item: iHighScore = { timestamp: timestamp, value: +value.toFixed(3), isMax: false };
     this.highscore.push(item);
     this.requestUpdate('highscore');
@@ -77,7 +88,7 @@ class ScoreBoard extends LitElement {
     await this.updateComplete;
 
     const last = this.list.children.length - 1;
-    this.list.children[last].scrollIntoView({ behavior: "instant", block: "end", inline: "nearest" });
+    this.list.children[last].scrollIntoView();
   }
 
   render() {
@@ -154,12 +165,12 @@ class ScoreBoard extends LitElement {
 
         <div class="punch-container">
           <ul class="punch-ul punch-card-4" id="list">
-          ${this.highscore.map((item, index) => html`
+          ${repeat(this.highscore, (i) => i.timestamp, (item, index) => html`
             <li class="punch-bar ${classMap({'selected': item.isMax})}">
-              <img src="../../assets/robots/robo${(index + 1) % 10}.png" class="punch-bar-item" style="width: 75px">
+              <img src="../images/robo${(index % 16 + 1)}.png" width=75 height=75 class="punch-bar-item" style="width: 75px">
               <div class="punch-bar-item">
-                <span class="punch-large" aria-label="Player name">Player-${index + 1}</span> |
-                <span .textContent="${item.value}" aria-label="Punch speed"></span>
+                <span class="punch-large" aria-label="Player name">Player #${index + 1}</span> |
+                <span aria-label="Punch speed">${item.value} m/s</span>
               </div>
             </li>
           `)}

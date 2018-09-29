@@ -8,5 +8,8 @@
   },
   "dependencies": {
     "@polymer/lit-element": "^0.6.1"
+  },
+  "devDependencies": {
+    "@types/w3c-web-usb": "^1.0.1"
   }
 }
