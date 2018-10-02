@@ -59,6 +59,55 @@ export const decode = buffer => {
   return result;
 };
 
+export class COBSDecoderTransformer {
+  start(controller) {
+    this._beginBlock();
+  }
+
+  _beginBlock() {
+    this.result = [];
+    this.resultIter = 0;
+    this.overheadByte = 0xff;
+    this.copy = 0x00;
+  }
+
+  _endBlock(controller) {
+    const newData = new Uint8Array(this.result);
+    if (controller) {
+      controller.enqueue(newData);
+    }
+  }
+
+  transform(chunk, controller) {
+    return new Promise((resolve, reject) => {
+      let i = 0;
+      while (i < chunk.length) {
+        if (this.copy != 0x00) {
+          this.result[this.resultIter++] = chunk[i++];
+        } else {
+          if (this.overheadByte != 0xff) {
+            this.result[this.resultIter++] = 0x00;
+          }
+          this.copy = this.overheadByte = chunk[i++];
+          if (this.overheadByte == 0x00) {
+            this.result.pop();
+            this._endBlock(controller);
+            this._beginBlock();
+            continue;
+          }
+        }
+        this.copy--;
+      }
+      resolve();
+    });
+  }
+
+  flush(controller) {
+    this._endBlock(controller);
+  }
+}
+
+
 export class COBSDecoderStream {
   constructor() {
     let _controller = null;

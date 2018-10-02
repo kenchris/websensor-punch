@@ -1,4 +1,4 @@
-import {COBSDecoderStream} from './cobs.js';
+import {COBSDecoderTransformer} from './cobs.js';
 
 export interface Sensor {
   onreading: Function | null;
@@ -13,9 +13,10 @@ export class EmpiriKit {
   private writer: any;
 
   constructor() {
-    const decoder = new COBSDecoderStream();
-    this.writer = decoder.writableStream.getWriter();
-    const reader = decoder.readableStream.getReader();
+    // @ts-ignore
+    const decoder = new TransformStream(new COBSDecoderTransformer);
+    this.writer = decoder.writable.getWriter();
+    const reader = decoder.readable.getReader();
 
     navigator.usb.getDevices().then(devices => this.device = devices[0]);
     navigator.usb.addEventListener('connect', ev => this._openDevice(ev.device));
@@ -92,9 +93,12 @@ export class EmpiriKit {
   }
 
   async readFromDevice() {
+    // Get 32 bytes on endpoint 5
     const transfer = await this.device.transferIn(5, 32);
+
     const data = new Uint8Array(transfer.data.buffer);
     this.writer.write(data);
+
     this.readFromDevice();
   }
 
