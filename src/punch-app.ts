@@ -21,22 +21,12 @@ interface iVector {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'punch-winner': PunchWinner;
+    'punch-app': PunchApp;
   }
 }
 
-@customElement('punch-winner' as any)
-class PunchWinner extends LitElement {
-  @property({type: String}) name = "";
-
-  render() {
-    return html`
-      <h1>And the winner is ${this.name}!</h1>
-    `;
-  }
-}
-
-class ScoreBoard extends LitElement {
+@customElement('punch-app')
+class PunchApp extends LitElement {
   @property({type:String}) page: string = "start";
 
   @property() highscore: iHighScore[] = [];
@@ -98,7 +88,7 @@ class ScoreBoard extends LitElement {
       if (this.isDetecting && velocity < movementThreshold) {
         if (!this.timeoutId) {
           // When people stop punching they still move the hand back a bit.
-          this.timeoutId = setTimeout(() => {
+          this.timeoutId = window.setTimeout(() => {
             console.info(`Punch from player ${this.player}!`, this.maxSpeed);
             this.isDetecting = false;
             this.timeoutId = null;
@@ -271,5 +261,3 @@ class ScoreBoard extends LitElement {
     `;
   }
 }
-
-customElements.define('score-board', ScoreBoard);
