@@ -1,15 +1,15 @@
 {
   "name": "knock-it-out",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "",
   "main": "index.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@material/mwc-button": "^0.2.1",
-    "@polymer/lit-element": "^0.6.1",
-    "@webcomponents/webcomponentsjs": "^2.1.3"
+    "@material/mwc-button": "^0.3.4",
+    "cobs-transform-streams": "^0.1.0",
+    "lit-element": "^2.0.0-rc.1"
   },
   "devDependencies": {
     "@types/w3c-web-usb": "^1.0.1"

@@ -1,4 +1,4 @@
-import {COBSDecoderTransformer} from './cobs.js';
+import {COBSDecoderTransformer} from 'cobs-transform-streams/src/cobs.js';
 
 export interface Sensor {
   onreading: Function | null;

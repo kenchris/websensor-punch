@@ -1,5 +1,5 @@
-import { html, LitElement, query, property, customElement } from '@polymer/lit-element';
-import { classMap } from 'lit-html/directives/classMap';
+import { html, css, LitElement, query, property, customElement } from 'lit-element';
+import { classMap } from 'lit-html/directives/class-map';
 import { repeat } from 'lit-html/directives/repeat';
 
 import "@material/mwc-button";
@@ -175,65 +175,67 @@ class ScoreBoard extends LitElement {
     this.list.children[last].scrollIntoView();
   }
 
+  static get styles() {
+    return [css`
+      :host{
+        text-align: center;
+        font-family: 'Lato', sans-serif;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .title {
+        margin: 0px;
+        padding: 0px;
+        font-family: 'Press Start 2P', sans-serif;
+        z-index: 100;
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        height: 100vh;
+        width: 100vw;
+        pointer-events: none;
+        background: white;
+        opacity: 0;
+      }
+
+      #go {
+        visibility: hidden;
+      } 
+
+      .punch-ul{
+        list-style-type: none;
+        padding:0;
+        margin:0
+      }
+      .punch-ul li{
+        padding: 0px;
+        border-bottom: 1px solid #ddd
+      }
+      .selected{
+        color: #fff;
+        background-color: #541388;
+      }
+      .hidden {
+        visibility: hidden;
+      }
+      .page {
+        display: none;
+      }
+      .page[active] {
+        display: block;
+      }
+    `];
+  }
+
   render() {
     return html`
-      <style>
-        :host{
-          text-align: center;
-          font-family: 'Lato', sans-serif;
-          display: block;
-          margin-left: auto;
-          margin-right: auto;
-        }
-
-        .title {
-          margin: 0px;
-          padding: 0px;
-          font-family: 'Press Start 2P', sans-serif;
-          z-index: 100;
-          position: fixed;
-          top: 0px;
-          right: 0px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-          height: 100vh;
-          width: 100vw;
-          pointer-events: none;
-          background: white;
-          opacity: 0;
-        }
-
-        #go {
-          visibility: hidden;
-        } 
-
-        .punch-ul{
-          list-style-type: none;
-          padding:0;
-          margin:0
-        }
-        .punch-ul li{
-          padding: 0px;
-          border-bottom: 1px solid #ddd
-        }
-        .selected{
-          color: #fff;
-          background-color: #541388;
-        }
-        .hidden {
-          visibility: hidden;
-        }
-        .page {
-          display: none;
-        }
-        .page[active] {
-          display: block;
-        }
-      </style>
-
       <div id="turn" role="header" class="title">
         <h1>👊 Punch Player #${this.player + 1} 👊</h1>
         <h1 id="go">GO!</h1>
